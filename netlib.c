@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <stdio.h>
 
 int create_server(const char* domain, int port) {
@@ -35,12 +36,9 @@ int create_server(const char* domain, int port) {
  	return sock;
 }
 
-int start_server(int sock,int size) {
-	/*
-	TODO: добавить в список аргументов указатель на callback-функцию, которая должна принимать запрос и отдавать ответ.
-	*/
+int start_server(int sock, int size,int (*callback)(int, int, const char*, char*)) {
 	int  bytes_read;
-	char buf[size]; // Заработает при использовании стандартов C99 и выше
+	char buf[size], wbuf[size]; // Заработает при использовании стандартов C99 и выше
 	int ret = accept(sock, NULL, NULL);	
 	if(ret == -1) {
 		perror("accept");
@@ -49,16 +47,36 @@ int start_server(int sock,int size) {
 	sock = ret;
 	while(1) {
 		bytes_read = recv(sock,buf,size,0);
-		if (!bytes_read) {
+		ret = callback(bytes_read,size,buf,wbuf);
+		if (!ret) {
+			break;
+		} else if (ret == -1) {
+			perror("callback");
 			break;
 		}
-		send(sock,buf,bytes_read,0);
+		send(sock,wbuf,ret,0);
 	}
 	close(sock);
 	return 0;
 }
 
+int echo_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
+	/*
+	Простой пример callback-функции, удаляющей все пробелы
+	*/
+	char del = ' ';
+	int i,j;
+	for(i = 0,j = 0;i < bytes_read;i++) {
+		if(buf[i] == del) {
+			continue;
+		}
+		wbuf[j] = buf[i]; 
+		j++;		
+	}
+	return j;
+}
+
 int main() {
 	int sock = create_server(NULL,8000);
-	start_server(sock,10);
+	start_server(sock,10,echo_callback);
 }
