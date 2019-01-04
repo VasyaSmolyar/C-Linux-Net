@@ -1,0 +1,14 @@
+#ifndef LN_TYPE_SERVER
+  #define LN_TYPE_SERVER 1
+  #define LN_TYPE_CLIENT 0
+#endif
+
+#ifndef create_server
+  #define create_server(domain,port) create_socket(domain,port, LN_TYPE_SERVER)
+  #define create_client(domain,port) create_socket(domain,port, LN_TYPE_CLIENT)
+#endif
+
+extern int create_socket(const char* domain, int port, int type);
+extern int start_server(int sock, int size,int (*callback)(int, int, const char*, char*));
+extern int use_client(int sock, int size, const char* buf,char* wbuf);
+extern int echo_callback(int bytes_read, int buf_size, const char* buf,char* wbuf);
