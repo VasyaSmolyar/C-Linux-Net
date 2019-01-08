@@ -4,4 +4,4 @@
     $ gcc demo.c netlib.c
 При запуске демо с параметром -c включается клиент, без параметров - сервер
 ## Сборка сервера
-    $ gcc server.c netlib.c
+    $ gcc server.c netlib.c rheaders.c

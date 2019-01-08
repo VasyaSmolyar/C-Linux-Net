@@ -1,35 +1,14 @@
 #include "netlib.h"
+#include "server.h"
+#include "rheaders.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-static char* methods[] = {"GET","HEAD","POST","OPTIONS"};
+char* methods[] = {"GET","HEAD","POST","OPTIONS"};
 enum {HEAD=0, GET, POST, OPTIONS}; // OPTIONS всегда должен стоять в конце
 enum {WRONG, STABLE};
 char file[255]; // Временная заглушка
-
-#define get_version(ver) "HTTP/1.1"
-
-struct query_head {
-  int method;
-  char path[255];
-  int version;
-};
-
-struct response_head {
-  char* version;
-  int code;
-  char* mes;
-  int get_file;
-  char* body;
-};
-
-struct query_head query_prepare(char** str_storage, int max, const char* query, int query_len);
-struct query_head head_prepare(const char* head);
-struct response_head get_res_head(struct query_head head,char** str_storage);
-int get_file(const char* path,char* dest);
-const char* get_mes_from_code(int code);
-void get_text_from_res(struct response_head head, char* buf);
 
 struct query_head query_prepare(char** str_storage, int max, const char* query, int query_len) {
     int i,k,j,n;
@@ -117,13 +96,12 @@ struct response_head get_res_head(struct query_head head,char** str_storage) {
 }
 
 void get_text_from_res(struct response_head head,char* buf) {
-  /*
-  TODO: Добавить обработку заголовков
-  */
+  char heads[RESPONSE_KEYS_SIZE * 300];
+  get_header_response(head, heads);
   if (head.get_file != -1) {
-    sprintf(buf,"%s %d %s\n\n%s",head.version,head.code,head.mes,head.body);
+    sprintf(buf,"%s %d %s\n%s\n%s",head.version,head.code,head.mes,heads,head.body);
   } else {
-    sprintf(buf,"%s %d %s\n",head.version,head.code,head.mes);
+    sprintf(buf,"%s %d %s\n%s",head.version,head.code,head.mes,heads);
   }
 }
 
@@ -154,9 +132,10 @@ int http_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
   struct query_head q = query_prepare(str_storage,255,buf,bytes_read);
   struct response_head rh = get_res_head(q,str_storage);
   get_text_from_res(rh,wbuf);
+  return strlen(wbuf);
 }
 
 int main() {
   int sock = create_server(NULL,8000);
-	start_server(sock,255,http_callback);
+	start_server(sock,255*(RESPONSE_KEYS_SIZE * 300),http_callback);
 }
