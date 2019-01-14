@@ -99,9 +99,9 @@ void get_text_from_res(struct response_head head,char* buf) {
   char heads[RESPONSE_KEYS_SIZE * 300];
   get_header_response(head, heads);
   if (head.get_file != -1) {
-    sprintf(buf,"%s %d %s\n%s\n%s",head.version,head.code,head.mes,heads,head.body);
+    sprintf(buf,"%s %d %s\r\n%s\r\n%s",head.version,head.code,head.mes,heads,head.body);
   } else {
-    sprintf(buf,"%s %d %s\n%s",head.version,head.code,head.mes,heads);
+    sprintf(buf,"%s %d %s\r\n%s\r\n",head.version,head.code,head.mes,heads);
   }
 }
 
@@ -121,9 +121,9 @@ const char* get_mes_from_code(int code) {
     case 200:
       return "OK";
     case 400:
-      return "BAD REQUEST";
+      return "Bad Request";
     case 404:
-      return "NOT FOUND";
+      return "Not Found";
   }
 }
 
