@@ -137,5 +137,6 @@ int http_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
 
 int main() {
   int sock = create_server(NULL,8000);
-	start_server(sock,255*(RESPONSE_KEYS_SIZE * 300),http_callback);
+  int ret;
+  while((ret = use_server(sock,255*(RESPONSE_KEYS_SIZE * 300),http_callback) != -1));
 }

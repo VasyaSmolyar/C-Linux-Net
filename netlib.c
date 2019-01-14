@@ -5,6 +5,9 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <errno.h>
+
+extern int errno;
 
 int create_socket(const char* domain, int port, int type) {
 	struct hostent host;
@@ -45,26 +48,28 @@ int create_socket(const char* domain, int port, int type) {
  	return sock;
 }
 
-int start_server(int sock, int size,int (*callback)(int, int, const char*, char*)) {
-	int bytes_read;
+int use_server(int sock, int size,int (*callback)(int, int, const char*, char*)) {
+	int bytes_read, rmode = 0;
 	char buf[size], wbuf[size]; // Заработает при использовании стандартов C99 и выше
+	char* pbuf = buf;
+	ssize_t all = 0;
 	int ret = accept(sock, NULL, NULL);
 	if(ret == -1) {
 		perror("accept");
 		return -1;
 	}
 	sock = ret;
-	while(1) {
-		bytes_read = recv(sock,buf,size,0);
-		ret = callback(bytes_read,size,buf,wbuf);
-		if (!ret) {
-			break;
-		} else if (ret == -1) {
-			perror("callback");
-			break;
-		}
-		send(sock,wbuf,ret,0);
+	/*
+	TODO: Придумать, как избавится от фиксированного size
+	с помощью динамической памяти
+	*/
+	bytes_read = recv(sock,pbuf,size - all,0);
+	ret = callback(bytes_read,size,buf,wbuf);
+	if (ret == -1) {
+		perror("callback");
+		return -1;
 	}
+	send(sock,wbuf,ret,0);
 	close(sock);
 	return 0;
 }
