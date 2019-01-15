@@ -19,7 +19,7 @@ int get_header_response(struct response_head head, char* dest) {
       /*
       TODO: Сделать выбор типа файла
       */
-      strcpy(response_values[2], "text/html");
+      strcpy(response_values[2], head.file_type);
       sprintf(response_values[3],"%255d",head.get_file);
     } else {
       strcpy(response_values[2], "");

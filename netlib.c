@@ -5,6 +5,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 
 extern int errno;
@@ -103,4 +104,15 @@ int echo_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
 		j++;
 	}
 	return j;
+}
+
+int strend(const char* source,const char* end) {
+	/*
+	TODO: доработать так, чтобы функция обрабатывала значения по типу test.html.my.html
+	*/
+	char* pl = strstr(source, end);
+	if(pl != NULL) {
+		return !strcmp(pl,end);
+	}
+	return 0;
 }

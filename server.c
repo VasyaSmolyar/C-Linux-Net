@@ -1,6 +1,11 @@
 #include "netlib.h"
 #include "server.h"
 #include "rheaders.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,7 +13,7 @@
 char* methods[] = {"GET","HEAD","POST","OPTIONS"};
 enum {HEAD=0, GET, POST, OPTIONS}; // OPTIONS всегда должен стоять в конце
 enum {WRONG, STABLE};
-char file[255]; // Временная заглушка
+char file[MAX_FILE_SIZE]; // Временное хранилище
 
 struct query_head query_prepare(char** str_storage, int max, const char* query, int query_len) {
     int i,k,j,n;
@@ -69,7 +74,8 @@ struct response_head get_res_head(struct query_head head,char** str_storage) {
     ans.code = 400;
     ans.get_file = -1;
   } else {
-    c_len = get_file(head.path,file);
+    c_len = get_file(head.path,file, MAX_FILE_SIZE);
+    ans.file_type = get_filetype(head.path);
     ans.get_file = c_len;
     ans.body = file;
     /*
@@ -105,15 +111,32 @@ void get_text_from_res(struct response_head head,char* buf) {
   }
 }
 
-int get_file(const char* path,char* dest) {
-  /*
-  TODO: Запилить нормальное получение файла
-  */
-  if (!strcmp(path,"/404")) {
-    return -1;
+int get_file(const char* path,char* dest, int size) {
+  int fd, all = 0, ret;
+  char www_path[256 * 2], *pdest = dest;
+  sprintf(www_path,"%s%s",get_www_dir(),path);
+  fd = open(www_path,O_RDONLY);
+  if (fd == -1) {
+    if(errno == ENOENT) {
+      return -1;
+    } else {
+      /*
+      TODO: Запилить возвращение кодов ошибок
+      */
+      perror("open");
+      return -1;
+    }
   }
-  strcpy(dest, "Wisdom\n");
-  return strlen(dest);
+  while((ret = read(fd,pdest,size - all)) != 0) {
+    if (ret == -1) {
+      perror("read");
+      return -1;
+    }
+    pdest += ret;
+    all += ret;
+  }
+  pdest[1] = '\0';
+  return all;
 }
 
 const char* get_mes_from_code(int code) {
@@ -127,6 +150,16 @@ const char* get_mes_from_code(int code) {
   }
 }
 
+const char* get_filetype(char* filename) {
+  if(strend(filename,".html")) {
+    return "text/html";
+  }
+  if(strend(filename,".css")) {
+    return "text/css";
+  }
+  return "plain/text";
+}
+
 int http_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
   char* str_storage[255];  // Больше строк чем 255 не обрабатывается
   struct query_head q = query_prepare(str_storage,255,buf,bytes_read);
@@ -138,5 +171,5 @@ int http_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
 int main() {
   int sock = create_server(NULL,8000);
   int ret;
-  while((ret = use_server(sock,255*(RESPONSE_KEYS_SIZE * 300),http_callback) != -1));
+  while((ret = use_server(sock,255*(RESPONSE_KEYS_SIZE * 300)+MAX_FILE_SIZE,http_callback) != -1));
 }
