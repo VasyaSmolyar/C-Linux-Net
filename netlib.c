@@ -106,6 +106,14 @@ int echo_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
 	return j;
 }
 
+int start_server(int sock) {
+	int ret = accept(sock, NULL, NULL);
+	if(ret == -1) {
+		perror("accept");
+	}
+	return ret;
+}
+
 int strend(const char* source,const char* end) {
 	/*
 	TODO: доработать так, чтобы функция обрабатывала значения по типу test.html.my.html
