@@ -14,6 +14,7 @@ char* methods[] = {"GET","HEAD","POST","OPTIONS"};
 enum {HEAD=0, GET, POST, OPTIONS}; // OPTIONS всегда должен стоять в конце
 enum {WRONG, STABLE};
 char file[MAX_FILE_SIZE]; // Временное хранилище
+int qcol; // Да, это костыль, сам знаю
 
 struct query_head query_prepare(char** str_storage, int max, const char* query, int query_len) {
     int i,k,j,n;
@@ -21,7 +22,7 @@ struct query_head query_prepare(char** str_storage, int max, const char* query, 
     for (i=0,k=0,j=0,n=0;i<query_len;i++) {
       if((query[i] == '\n') || (i == query_len-1)) {
         if (j == 0) break;
-        str_storage[n] = (char*)malloc(sizeof(char)*(j+1));
+        //str_storage[n] = (char*)malloc(sizeof(char)*(j+1));
         tmp = (char*)query+k;
         strncpy(str_storage[n],tmp,j);
         tmp = str_storage[n]+j+1;
@@ -32,6 +33,7 @@ struct query_head query_prepare(char** str_storage, int max, const char* query, 
       }
       j++;
     }
+    qcol = n-1;
     return head_prepare(str_storage[0]);
 }
 
@@ -99,20 +101,37 @@ struct response_head get_res_head(struct query_head head,char** str_storage, int
   }
   if(c_len == -1 && ans.code != 400) {
     ans.code = 404;
+  } if (ans.code != 200) {
+    ans.file_type = "text/html";
   }
   ans.mes = get_mes_from_code(ans.code);
   ans.version = get_version(head.version);
   return ans;
 }
 
-void get_text_from_res(struct response_head head,char* buf) {
+long get_text_from_res(struct response_head head,char* buf) {
   char heads[RESPONSE_KEYS_SIZE * 300];
+  char* pdest;
+  long i,count;
   get_header_response(head, heads);
+  /*
   if (head.get_file != -1) {
     sprintf(buf,"%s %d %s\r\n%s\r\n%s",head.version,head.code,head.mes,heads,head.body);
   } else {
     sprintf(buf,"%s %d %s\r\n%s\r\n",head.version,head.code,head.mes,heads);
   }
+  */
+  sprintf(buf,"%s %d %s\r\n%s\r\n",head.version,head.code,head.mes,heads);
+  count = strlen(buf);
+  if (head.get_file != -1) {
+    pdest = buf + (int)count;
+    for(i = 0;i < head.get_file;i++) {
+      *pdest = *(head.body+i);
+      pdest++;
+    }
+    count += i;
+  }
+  return count;
 }
 
 int get_file(const char* path,char* dest, int size) {
@@ -139,7 +158,7 @@ int get_file(const char* path,char* dest, int size) {
     pdest += ret;
     all += ret;
   }
-  pdest[1] = '\0';
+  //pdest[1] = '\0';
   return all;
 }
 
@@ -214,19 +233,40 @@ const char* get_mes_from_code(int code) {
 const char* get_filetype(char* filename) {
   if(strend(filename,".html")) {
     return "text/html";
-  }
-  if(strend(filename,".css")) {
+  } if(strend(filename,".css")) {
     return "text/css";
+  } if(strend(filename,".js")) {
+    return "text/javascript";
+  } if(strend(filename,".png")) {
+    return "image/png";
+  } if(strend(filename,".jpg")) {
+    return "image/jpeg";
   }
-  return "plain/text";
+  return "text/plain";
+}
+
+void free_mem(char** str_storage) {
+  for(int i = 0;i<qcol;i++) {
+    if(str_storage[i] != NULL) {
+      free(str_storage[i]);
+    }
+  }
 }
 
 int http_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
+  int i;
   char* str_storage[255];  // Больше строк чем 255 не обрабатывается
+  for(i = 0; i < 255; i++) {
+    str_storage[i] = malloc(255);
+  }
   struct query_head q = query_prepare(str_storage,255,buf,bytes_read);
   struct response_head rh = get_res_head(q,str_storage, 1);
-  get_text_from_res(rh,wbuf);
-  return strlen(wbuf);
+  long f = get_text_from_res(rh,wbuf);
+  //free_mem(str_storage);
+  for(i = 0; i < 255; i++) {
+     free((void*)str_storage[i]);
+  }
+  return (int)f;
 }
 
 int http_server(int sock) {

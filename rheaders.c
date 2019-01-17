@@ -22,12 +22,15 @@ int get_header_response(struct response_head head, char* dest) {
       strcpy(response_values[2], head.file_type);
       sprintf(response_values[3],"%255d",head.get_file);
     } else {
-      strcpy(response_values[2], "");
-      strcpy(response_values[3], "");
+      strcpy(response_values[2], "text/html");
+      strcpy(response_values[3], "0");
     }
     strcpy(response_values[3], "keep-alive");
     strcpy(response_values[4], "timeout=25");
     strcpy(response_values[5], "");
+  } else {
+    strcpy(response_values[2], "text/html");
+    strcpy(response_values[3], "0");
   }
   for(i=0;i<RESPONSE_KEYS_SIZE;i++) {
     if(strlen(response_values[i])) {
