@@ -270,11 +270,14 @@ int http_callback(int bytes_read, int buf_size, const char* buf,char* wbuf) {
 }
 
 int http_server(int sock) {
-  int query_size = 255 * RESPONSE_KEYS_SIZE * 300, ret;
+  int query_size = 255 * RESPONSE_KEYS_SIZE * 300, ret, i;
   char* str_storage[255];  // Больше строк чем 255 не обрабатывается
+  for(i = 0; i < 255; i++) {
+    str_storage[i] = malloc(255);
+  }
   struct query_head head;
   struct response_head res;
-  char query_buf[query_size];
+  char query_buf[query_size], res_buf[query_size];
   sock = start_server(sock);
   if (sock == -1) {
     perror("start_server");
@@ -287,11 +290,14 @@ int http_server(int sock) {
   }
   head = query_prepare(str_storage, 255, query_buf, ret);
   res = get_res_head(head, str_storage, 0);
-  get_header_response(res, query_buf);
-  write_head(sock, res, query_buf);
+  get_header_response(res, res_buf);
+  write_head(sock, res, res_buf);
   if(res.get_file != -1) {
     write_body(res.file_fd,sock,head.path);
     close(res.file_fd);
+  }
+  for(i = 0; i < 255; i++) {
+     free((void*)str_storage[i]);
   }
   close(sock);
   return 0;
@@ -299,6 +305,6 @@ int http_server(int sock) {
 
 int main() {
   int sock = create_server(NULL,8000);
-  while(use_server(sock,255*(RESPONSE_KEYS_SIZE * 300)+MAX_FILE_SIZE,http_callback) != -1);
-  //while(http_server(sock) != -1);
+  //while(use_server(sock,255*(RESPONSE_KEYS_SIZE * 300)+MAX_FILE_SIZE,http_callback) != -1);
+  while(http_server(sock) != -1);
 }
